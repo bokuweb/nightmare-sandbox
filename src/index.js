@@ -7,7 +7,6 @@ const browserHeight = 800;
 
 function *run() {
   const nightmare = new Nightmare({
-    show: false,
     width: 1200,
     height: 800,
   });
@@ -19,30 +18,39 @@ function *run() {
             return body.scrollHeight;
           });
 
-  const nodes =  yield nightmare.goto('http://blackrockdigital.github.io/startbootstrap-grayscale/')
+  yield nightmare.goto('http://blackrockdigital.github.io/startbootstrap-grayscale/')
           .wait('body')
-          .evaluate(function() {
-            // jQuery obj?
-            //return document.body.style.display
-            var l = [];
-            const body = document.querySelector('body');
-            // var nodes =  body.childNodes;
-            for(var i = 0; i < body.childNodes.length; i ++) {
-              if (body.childNodes[i].style) l.push(body.childNodes[i].style.display)
-            }
-            return l;
-          })
-
-  console.log(util.inspect(nodes));
+          .screenshot(require('path').join('./', `g0.png`));
 
   console.log(height);
-  for (var i = 0; i < height / browserHeight; i ++) {
+
+  for (var i = 1; i < height / browserHeight; i ++) {
     yield nightmare.viewport(browserWidth, browserHeight)
       .wait('body')
       // のこりheightがブラウザ高さ未満の場合veiwポートを変更？して高さをあわせる？
       .scrollTo(browserHeight * i, 0)
       .wait(100)
-      .screenshot(require('path').join('./', `grayscale${i}.png`));
+      .evaluate(i => {
+        const searchNodes = root => {
+          // const list = [];
+          const search = node => {
+            while (node != null) {
+              var position;
+              if (node.style) {
+                position = window.getComputedStyle(node, null).getPropertyValue("position");
+              }
+              if (position === 'fixed') {
+                try { node.style.display = 'none' } catch(e) {};
+              }
+              search(node.firstChild);
+              node = node.nextSibling;
+            }
+          }
+          search(root.firstChild);
+        }
+        return searchNodes(document.querySelector('body'));
+      })
+      .screenshot(require('path').join('./', `g${i}.png`));
   }
   yield nightmare.end();
 }
@@ -51,22 +59,3 @@ vo(run)(function() {
   console.log('done');
 });
 
-function searchNodes(root) {
-  var list = [];
-  var search = function (node)
-  {
-    while (node != null)
-    {
-      // 自分を処理
-      list.push(node);
-      // 子供を再帰
-      search(node.first());
-      // 次のノードを探査
-      node = node.next();
-    }
-  }
-  search(root.first());
-  return list;
-}
-
- 
